@@ -12,3 +12,6 @@ results/*
 !results/v4_candidate/
 results/v4_candidate/*
 !results/v4_candidate/answer.csv
+!results/v5_graph_confirmed/
+results/v5_graph_confirmed/*
+!results/v5_graph_confirmed/answer.csv

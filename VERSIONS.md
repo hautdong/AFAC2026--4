@@ -1,5 +1,19 @@
 # Version Log
 
+## v5-graph-confirmed-score-pending
+
+- Date: 2026-07-20
+- Public A score: pending online evaluation
+- Total tokens: 2,035,582
+- Submit file: `results/v5_graph_confirmed/answer.csv`
+
+Changes:
+
+- Compared v2, graph RAG, and v4 answers to isolate 19 unresolved questions.
+- Re-arbitrated those questions using page-aware evidence plus graph-retrieved source chunks.
+- Required valid citations, high confidence, and exact agreement with the graph answer before overriding v4.
+- Changed only `fc_a_004` from `AD` to `A`; retained v4 for the other 99 questions.
+
 ## v4-score-70.7675
 
 - Date: 2026-07-20
