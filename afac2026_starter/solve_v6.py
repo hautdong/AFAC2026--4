@@ -151,6 +151,11 @@ def semantic_guardrails(question: Dict[str, Any]) -> List[str]:
             "directly supports implementation of a 50% cash-dividend policy. Pending approval of the current "
             "year's payment plan does not negate policy implementation unless the option claims payment completed."
         )
+    if "现金分红方案为" in text or "利润分配方案为" in text:
+        guards.append(
+            "An option stating what a dividend plan 'is' describes the plan's terms, not completed payment. "
+            "A pending shareholder approval does not make the stated per-share plan amount false."
+        )
     if re.search(r"\d+(?:\.\d+)?%?\s*至\s*\d+(?:\.\d+)?%?", text):
         guards.append(
             "For a stated numeric interval, test unrounded source values against both endpoints; a value such as "
@@ -219,6 +224,81 @@ def apply_deterministic_checks(
             }
         )
         changed = True
+
+    if str(question.get("domain", "")) == "financial_reports":
+        for letter in LETTERS:
+            option = str(options.get(letter, ""))
+            if not any(phrase in option for phrase in ("现金分红方案为", "利润分配方案为")):
+                continue
+            amounts = re.findall(r"每\s*10\s*股[^\d]{0,12}(\d+(?:\.\d+)?)\s*元", option)
+            if not amounts:
+                continue
+            matching = [
+                chunk for chunk in pack.chunks
+                if "每10股" in normalized_literal(chunk.text)
+                and any(normalized_literal(amount) in normalized_literal(chunk.text) for amount in amounts)
+                and any(term in chunk.text for term in ("分红方案", "利润分配预案", "现金分红"))
+            ]
+            if not matching:
+                continue
+            best = max(matching, key=lambda item: item.score)
+            item = judgments.get(letter)
+            if not isinstance(item, dict):
+                item = {}
+                judgments[letter] = item
+            item.update(
+                {
+                    "verdict": True,
+                    "confidence": 1.0,
+                    "citations": [best.chunk_id],
+                    "reasoning": (
+                        "Deterministic plan-term check: the source plan states the same per-10-share amount. "
+                        "Pending approval affects payment completion, not the content of the plan."
+                    ),
+                }
+            )
+            changed = True
+
+    if str(question.get("answer_format", "")).lower() == "tf":
+        proposition = str(question.get("question", ""))
+        start_match = re.search(r"自\s*(20\d{2})\s*年起连续", proposition)
+        chinese_years = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+        if start_match:
+            start_year = int(start_match.group(1))
+            matching_duration: List[Tuple[int, PageChunk]] = []
+            for chunk in pack.chunks:
+                duration_match = re.search(r"连续\s*([一二三四五六七八九十]|\d+)\s*年", chunk.text)
+                if not duration_match or f"自{start_year}年起" not in normalized_literal(chunk.text):
+                    continue
+                raw_duration = duration_match.group(1)
+                duration = int(raw_duration) if raw_duration.isdigit() else chinese_years.get(raw_duration, 0)
+                report_years = [int(year) for year in re.findall(r"20\d{2}", f"{chunk.title} {chunk.doc_id}")]
+                if duration > 0 and report_years:
+                    matching_duration.append((max(report_years) - (start_year + duration - 1), chunk))
+            contradictions = [(gap, chunk) for gap, chunk in matching_duration if gap > 0]
+            if contradictions:
+                gap, best = max(contradictions, key=lambda item: (item[0], item[1].score))
+                judgments.setdefault("A", {}).update(
+                    {
+                        "verdict": False,
+                        "confidence": 1.0,
+                        "citations": [best.chunk_id],
+                        "reasoning": (
+                            "Deterministic duration check: the stated consecutive period ends before the report "
+                            "year, so it cannot prove continuous implementation through the reporting date."
+                        ),
+                    }
+                )
+                judgments.setdefault("B", {}).update(
+                    {
+                        "verdict": True,
+                        "confidence": 1.0,
+                        "citations": [best.chunk_id],
+                        "reasoning": "The conjunction is false because its continuous-duration claim is unsupported.",
+                    }
+                )
+                result["proposition_verdict"] = False
+                changed = True
 
     simple_fact_disqualifiers = (
         "高于", "低于", "超过", "不超过", "至少", "至多", "之间", "均", "两份",

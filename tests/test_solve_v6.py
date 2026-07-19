@@ -178,6 +178,52 @@ class SolveV6Tests(unittest.TestCase):
         self.assertFalse(checked["judgments"]["A"]["verdict"])
         self.assertEqual("B", checked["answer"])
 
+    def test_pending_dividend_plan_still_has_stated_terms(self):
+        source = chunk(
+            "report2025",
+            59,
+            "2025年度利润分配预案尚需批准，向全体股东每10股派发现金分红69.57元",
+            {"B"},
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "financial_reports",
+            "options": {"B": "2025年度现金分红方案为每10股派发现金分红69.57元"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"B": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["B"]["verdict"])
+
+    def test_consecutive_duration_must_reach_report_year(self):
+        source = chunk(
+            "annual_midea_2024_report",
+            44,
+            "自2019年起公司连续四年推出回购计划",
+            {"A"},
+            10,
+        )
+        source.title = "美的集团2024年年度报告"
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "question": "美的集团自2019年起连续实施了股份回购方案。",
+            "answer_format": "tf",
+            "domain": "financial_reports",
+            "options": {"A": "正确", "B": "错误"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "A", "judgments": {"A": {"verdict": True}, "B": {"verdict": False}}},
+        )
+        self.assertFalse(checked["judgments"]["A"]["verdict"])
+        self.assertTrue(checked["judgments"]["B"]["verdict"])
+        self.assertEqual("B", checked["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()
