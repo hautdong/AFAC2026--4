@@ -394,6 +394,56 @@ def apply_deterministic_checks(
             )
             changed = True
 
+    if str(question.get("domain", "")) == "regulatory":
+        doc_ids = [str(doc_id) for doc_id in question.get("doc_ids", [])]
+        for letter in LETTERS:
+            option = str(options.get(letter, ""))
+            titles = re.findall(r"《([^》]+)》", option)
+            if "施行日期早于" not in option or len(titles) < 2:
+                continue
+            dates: List[Optional[Tuple[int, int, int]]] = []
+            citations: List[str] = []
+            for title in titles[:2]:
+                matches = [
+                    chunk for chunk in pack.chunks
+                    if any(
+                        normalized_literal(title) in normalized_literal(value)
+                        for value in (chunk.doc_id, chunk.title, chunk.text[:180])
+                    )
+                    and re.search(r"自\s*20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日起施行", chunk.text)
+                ]
+                if not matches:
+                    dates.append(None)
+                    continue
+                best = max(matches, key=lambda item: item.score)
+                date_match = re.search(
+                    r"自\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日起施行",
+                    best.text,
+                )
+                dates.append(tuple(int(part) for part in date_match.groups()) if date_match else None)
+                citations.append(best.chunk_id)
+            if dates[0] is None or dates[1] is None:
+                continue
+            item = judgments.get(letter)
+            if not isinstance(item, dict):
+                item = {}
+                judgments[letter] = item
+            verdict = dates[0] < dates[1]
+            item.update(
+                {
+                    "verdict": verdict,
+                    "confidence": 1.0,
+                    "citations": citations,
+                    "reasoning": (
+                        f"Deterministic effective-date comparison: the first regulation takes effect on "
+                        f"{dates[0][0]}-{dates[0][1]:02d}-{dates[0][2]:02d} and the second on "
+                        f"{dates[1][0]}-{dates[1][1]:02d}-{dates[1][2]:02d}; compare the titles in the option's "
+                        "stated order."
+                    ),
+                }
+            )
+            changed = True
+
     if str(question.get("answer_format", "")).lower() == "tf":
         proposition = str(question.get("question", ""))
         start_match = re.search(r"自\s*(20\d{2})\s*年起连续", proposition)

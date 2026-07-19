@@ -293,6 +293,37 @@ class SolveV6Tests(unittest.TestCase):
         self.assertFalse(checked["judgments"]["B"]["verdict"])
         self.assertEqual("", checked["answer"])
 
+    def test_regulatory_effective_dates_follow_option_title_order(self):
+        first = chunk(
+            "doc_due",
+            1,
+            "《客户尽职调查办法》自2026年1月1日起施行",
+            set(),
+            10,
+        )
+        second = chunk(
+            "doc_beneficial",
+            1,
+            "《受益所有人识别办法》自2026年1月20日起施行",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[first, second], context="", diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "regulatory",
+            "options": {
+                "D": "《客户尽职调查办法》的施行日期早于《受益所有人识别办法》",
+            },
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"D": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+        self.assertEqual("D", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
