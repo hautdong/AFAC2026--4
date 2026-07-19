@@ -156,6 +156,28 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["D"]["verdict"])
         self.assertEqual("D", checked["answer"])
 
+    def test_overdue_interest_does_not_inherit_liquidated_damages_base(self):
+        source = chunk(
+            "text03",
+            175,
+            "逾期利息具体计算方式为本金×票面利率；违约金具体计算方式为延迟支付的本金和利息×票面利率",
+            {"A"},
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "financial_contracts",
+            "options": {"A": "文档约定的违约利息计算基数包含本金和利息", "B": "其他"},
+        }
+        parsed = {
+            "answer": "AB",
+            "judgments": {"A": {"verdict": True}, "B": {"verdict": True}},
+        }
+        checked = apply_deterministic_checks(question, pack, parsed)
+        self.assertFalse(checked["judgments"]["A"]["verdict"])
+        self.assertEqual("B", checked["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

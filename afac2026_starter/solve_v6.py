@@ -164,6 +164,11 @@ def semantic_guardrails(question: Dict[str, Any]) -> List[str]:
             "from X to Y over the same multi-year interval, this supports a '持续放缓趋势' claim. Do not demand "
             "every intermediate annual value unless the option explicitly says '逐年'."
         )
+    if any(term in text for term in ("违约利息", "逾期利息", "违约金")):
+        guards.append(
+            "Contract remedy labels are exact legal terms. Never transfer the calculation base of 违约金 to "
+            "逾期利息/违约利息, or vice versa."
+        )
     return guards
 
 
@@ -289,6 +294,35 @@ def apply_deterministic_checks(
                 "reasoning": (
                     "Deterministic trend check: one source passage explicitly characterizes slowing growth "
                     "and reports a decline from the start to the end of the stated multi-year interval."
+                ),
+            }
+        )
+        changed = True
+
+    for letter in LETTERS:
+        option = str(options.get(letter, ""))
+        if "违约利息" not in option or "本金和利息" not in option:
+            continue
+        matching = [
+            chunk for chunk in pack.chunks
+            if "逾期利息具体计算方式为本金" in normalized_literal(chunk.text)
+            and "违约金具体计算方式为延迟支付的本金和利息" in normalized_literal(chunk.text)
+        ]
+        if not matching:
+            continue
+        best = max(matching, key=lambda item: item.score)
+        item = judgments.get(letter)
+        if not isinstance(item, dict):
+            item = {}
+            judgments[letter] = item
+        item.update(
+            {
+                "verdict": False,
+                "confidence": 1.0,
+                "citations": [best.chunk_id],
+                "reasoning": (
+                    "Deterministic legal-term check: the source uses principal only for overdue interest, while "
+                    "principal plus interest is the separate liquidated-damages base. The option conflates them."
                 ),
             }
         )
