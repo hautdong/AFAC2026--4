@@ -10,4 +10,5 @@ results/*
 !results/v2_submit/
 !results/v2_submit/answer.csv
 !results/v4_candidate/
+results/v4_candidate/*
 !results/v4_candidate/answer.csv
