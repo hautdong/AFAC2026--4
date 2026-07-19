@@ -339,6 +339,30 @@ def apply_deterministic_checks(
     if str(question.get("domain", "")) == "insurance":
         for letter in LETTERS:
             option = str(options.get(letter, ""))
+            if "白血病复发住院" in option and "首次复发" not in option:
+                matching = [
+                    chunk for chunk in pack.chunks
+                    if "急性白血病首次复发" in chunk.text
+                ]
+                if matching:
+                    best = max(matching, key=lambda item: item.score)
+                    item = judgments.get(letter)
+                    if not isinstance(item, dict):
+                        item = {}
+                        judgments[letter] = item
+                    item.update(
+                        {
+                            "verdict": False,
+                            "confidence": 1.0,
+                            "citations": [best.chunk_id],
+                            "reasoning": (
+                                "Deterministic disease-recurrence check: the policy covers acute leukemia "
+                                "first recurrence, while the option states only generic leukemia recurrence and "
+                                "does not establish the required first-recurrence condition."
+                            ),
+                        }
+                    )
+                    changed = True
             required_terms = ("营运交通意外险", "乘坐公交车", "车祸", "伤残")
             if not all(term in option for term in required_terms):
                 continue

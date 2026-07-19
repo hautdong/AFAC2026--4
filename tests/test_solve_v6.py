@@ -271,6 +271,28 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["C"]["verdict"])
         self.assertEqual("C", checked["answer"])
 
+    def test_generic_leukemia_recurrence_does_not_prove_first_recurrence(self):
+        source = chunk(
+            "3",
+            1,
+            "保险责任限于急性白血病首次复发并在医院接受治疗",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "insurance",
+            "options": {"B": "众安白血病医疗险：白血病复发住院"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "B", "judgments": {"B": {"verdict": True}}},
+        )
+        self.assertFalse(checked["judgments"]["B"]["verdict"])
+        self.assertEqual("", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
