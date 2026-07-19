@@ -4,8 +4,10 @@ from collections import Counter
 from afac2026_starter.common import tokenize
 from afac2026_starter.solve_v4 import EvidencePack, PageChunk
 from afac2026_starter.solve_v6 import (
+    augment_structured_metric_evidence,
     apply_deterministic_checks,
     compact_review_pack,
+    expanded_retrieval_question,
     literal_evidence_hints,
     question_profile,
     retrieval_settings,
@@ -48,6 +50,32 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(settings["include_early_summary"])
         self.assertEqual(3, settings["continuation_limit"])
         self.assertEqual(24000, settings["max_chars"])
+
+    def test_financial_growth_query_gets_report_synonyms(self):
+        expanded = expanded_retrieval_question(
+            {
+                "domain": "financial_reports",
+                "options": {"A": "2025年营业总收入增长率高于2024年"},
+            }
+        )
+        self.assertIn("同比增长", expanded["options"]["A"])
+        self.assertIn("主营业务分析", expanded["options"]["A"])
+
+    def test_revenue_growth_comparison_keeps_explicit_rate_chunk(self):
+        report_chunk = chunk("r2024", 20, "2024年营业总收入4091亿元，同比增长9.5%", set(), 1)
+        indexes = {
+            "r2024": type("Doc", (), {"chunks": [report_chunk]})(),
+        }
+        pack = EvidencePack(chunks=[], context="", diagnostics={})
+        question = {
+            "domain": "financial_reports",
+            "doc_ids": ["r2024"],
+            "question": "营业总收入增长率比较",
+            "options": {"A": "2024年营业总收入增长率"},
+        }
+        augmented = augment_structured_metric_evidence(question, indexes, pack, 5000)
+        self.assertIn("r2024::p20", {item.chunk_id for item in augmented.chunks})
+        self.assertIn("9.5%", augmented.context)
 
     def test_compact_review_keeps_both_documents(self):
         chunks = [
@@ -198,6 +226,28 @@ class SolveV6Tests(unittest.TestCase):
             {"answer": "", "judgments": {"B": {"verdict": False}}},
         )
         self.assertTrue(checked["judgments"]["B"]["verdict"])
+
+    def test_shareholder_return_comparison_survives_unit_conversion_error(self):
+        source = chunk(
+            "annual_midea_2025_report",
+            49,
+            "2025年度公司现金分红与股份回购之总金额超过当年度公司归母净利润",
+            {"D"},
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "financial_reports",
+            "options": {"D": "2025年度公司现金分红与股份回购之总金额超过了当年归母净利润"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"D": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+        self.assertEqual("D", checked["answer"])
 
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
