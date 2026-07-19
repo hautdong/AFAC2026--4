@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+cache/
+public_dataset_a/
+data/
+results/*
+!results/.gitkeep
+!results/v2_submit/
+!results/v2_submit/answer.csv
