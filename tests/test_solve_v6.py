@@ -324,6 +324,47 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["D"]["verdict"])
         self.assertEqual("D", checked["answer"])
 
+    def test_regulatory_classification_effective_date_literal(self):
+        source = chunk(
+            "csrc",
+            12,
+            "本规定自2025 年8 月22 日起施行",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "regulatory",
+            "options": {"D": "相关分类监管规定的施行时间为 2025 年 8 月 22 日"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"D": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+
+    def test_research_tf_comparison_keeps_proposition_direction(self):
+        first = chunk("pack2_text01", 4, "韩国寿险银保渠道近20年的复合增速达到12%", set(), 10)
+        second = chunk("pack2_text19", 1, "全球RFID标签出货量复合增速达14.1%", set(), 10)
+        pack = EvidencePack(chunks=[first, second], context="", diagnostics={})
+        question = {
+            "answer_format": "tf",
+            "domain": "research",
+            "question": "韩国寿险银保渠道近20年的复合增速低于远望谷在新兴赛道的RFID标签出货量复合增速。",
+            "options": {"A": "正确", "B": "错误"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "B", "judgments": {"A": {"verdict": False}, "B": {"verdict": True}}},
+        )
+        self.assertTrue(checked["judgments"]["A"]["verdict"])
+        self.assertFalse(checked["judgments"]["B"]["verdict"])
+        self.assertTrue(checked["proposition_verdict"])
+        self.assertEqual("A", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
