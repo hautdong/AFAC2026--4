@@ -1,9 +1,9 @@
 # Version Log
 
-## v5-graph-confirmed-score-pending
+## v5-score-69.3513
 
 - Date: 2026-07-20
-- Public A score: pending online evaluation
+- Public A score: 69.3513
 - Total tokens: 2,035,582
 - Submit file: `results/v5_graph_confirmed/answer.csv`
 
