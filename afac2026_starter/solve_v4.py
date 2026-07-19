@@ -297,6 +297,10 @@ def select_evidence(
     indexes: Dict[str, DocumentIndex],
     max_chars: int,
     extra_queries: Optional[Sequence[str]] = None,
+    group_limit: int = 2,
+    selection_budget: int = 16,
+    continuation_limit: int = 3,
+    include_early_summary: bool = True,
 ) -> EvidencePack:
     doc_ids = question_doc_ids(question, indexes)
     if not doc_ids:
@@ -315,20 +319,23 @@ def select_evidence(
             query_groups.append((f"REVIEW_{index + 1}", f"{stem}\n{query}"))
 
     selected_by_doc: Dict[str, Dict[str, PageChunk]] = defaultdict(dict)
-    per_doc_limit = max(3, min(7, 16 // max(1, len(doc_ids))))
+    per_doc_limit = max(3, min(7, selection_budget // max(1, len(doc_ids))))
     for doc_order, doc_id in enumerate(doc_ids, start=1):
         document = indexes[doc_id]
         candidate_map: Dict[str, PageChunk] = {}
         front_chunk = document.chunks[0] if document.chunks else None
         early_chunks = [chunk for chunk in document.chunks if chunk.page <= 5]
-        early_ranked = rank_document_chunks(
-            DocumentIndex(document.doc_id, document.title, document.pages, early_chunks),
-            global_query,
-            idf,
-            1,
+        early_ranked = (
+            rank_document_chunks(
+                DocumentIndex(document.doc_id, document.title, document.pages, early_chunks),
+                global_query,
+                idf,
+                1,
+            )
+            if include_early_summary
+            else []
         )
         for group_name, query_text in query_groups:
-            group_limit = 2
             for chunk in rank_document_chunks(document, query_text, idf, group_limit):
                 existing = candidate_map.get(chunk.chunk_id)
                 if existing is None:
@@ -386,7 +393,7 @@ def select_evidence(
             carried.score = source.score * 0.9
             selected_by_doc[doc_id][carried.chunk_id] = carried
             neighbors_added += 1
-            if neighbors_added >= 3:
+            if neighbors_added >= continuation_limit:
                 break
 
     selected = [
@@ -468,6 +475,7 @@ def call_json(
     client: OpenAI,
     model: str,
     messages: List[Dict[str, str]],
+    max_completion_tokens: Optional[int] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, int]]:
     response = None
     last_error: Optional[Exception] = None
@@ -475,11 +483,16 @@ def call_json(
         if delay:
             time.sleep(delay)
         try:
+            request: Dict[str, Any] = {
+                "model": model,
+                "temperature": 0,
+                "messages": messages,
+                "response_format": {"type": "json_object"},
+            }
+            if max_completion_tokens is not None:
+                request["max_tokens"] = max_completion_tokens
             response = client.chat.completions.create(
-                model=model,
-                temperature=0,
-                messages=messages,
-                response_format={"type": "json_object"},
+                **request,
             )
             break
         except Exception as error:  # SDK exposes different transient error classes by version.
