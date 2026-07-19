@@ -249,6 +249,28 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["D"]["verdict"])
         self.assertEqual("D", checked["answer"])
 
+    def test_bus_accident_option_implies_transport_coverage(self):
+        source = chunk(
+            "8",
+            2,
+            "持有效客票乘坐合法从事客运的营运交通工具，包括公共汽车，遭受意外伤害导致伤残给付保险金",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "insurance",
+            "options": {"C": "众安营运交通意外险：乘坐公交车发生车祸导致伤残"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"C": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["C"]["verdict"])
+        self.assertEqual("C", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",

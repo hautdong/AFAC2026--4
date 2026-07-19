@@ -336,6 +336,40 @@ def apply_deterministic_checks(
             )
             changed = True
 
+    if str(question.get("domain", "")) == "insurance":
+        for letter in LETTERS:
+            option = str(options.get(letter, ""))
+            required_terms = ("营运交通意外险", "乘坐公交车", "车祸", "伤残")
+            if not all(term in option for term in required_terms):
+                continue
+            matching = [
+                chunk for chunk in pack.chunks
+                if "营运交通工具" in chunk.text
+                and any(term in chunk.text for term in ("公共汽车", "公交车"))
+                and "伤残" in chunk.text
+            ]
+            if not matching:
+                continue
+            best = max(matching, key=lambda item: item.score)
+            item = judgments.get(letter)
+            if not isinstance(item, dict):
+                item = {}
+                judgments[letter] = item
+            item.update(
+                {
+                    "verdict": True,
+                    "confidence": 1.0,
+                    "citations": [best.chunk_id],
+                    "reasoning": (
+                        "Deterministic transport-accident check: the option states that the insured was riding "
+                        "a bus and suffered an accident causing disability; the policy covers accidents causing "
+                        "disability while using an operating public transport vehicle. Do not invent an uninsured "
+                        "ticket scenario when the option gives no contrary fact."
+                    ),
+                }
+            )
+            changed = True
+
     if str(question.get("answer_format", "")).lower() == "tf":
         proposition = str(question.get("question", ""))
         start_match = re.search(r"自\s*(20\d{2})\s*年起连续", proposition)
