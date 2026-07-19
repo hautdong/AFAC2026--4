@@ -136,6 +136,26 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["D"]["verdict"])
         self.assertEqual("D", checked["answer"])
 
+    def test_simple_numeric_field_does_not_gain_unstated_scope(self):
+        source = chunk(
+            "text10",
+            33,
+            "标的公司控股股东力诺投资的资产负债率为43.24%",
+            {"D"},
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "financial_contracts",
+            "doc_ids": ["text01", "text10"],
+            "options": {"D": "第二份文档中标的公司控股股东的资产负债率为43.24%"},
+        }
+        parsed = {"answer": "A", "judgments": {"D": {"verdict": False}}}
+        checked = apply_deterministic_checks(question, pack, parsed)
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+        self.assertEqual("D", checked["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

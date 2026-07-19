@@ -215,6 +215,55 @@ def apply_deterministic_checks(
         )
         changed = True
 
+    simple_fact_disqualifiers = (
+        "高于", "低于", "超过", "不超过", "至少", "至多", "之间", "均", "两份",
+        "增长", "下降", "增加", "减少", "早于", "晚于", "排序", ">", "<", "=",
+    )
+    for letter in LETTERS:
+        if str(question.get("domain", "")) != "financial_contracts":
+            continue
+        option = str(options.get(letter, ""))
+        if any(term in option for term in simple_fact_disqualifiers):
+            continue
+        fields = [field for field in LITERAL_FIELD_TERMS if field in option]
+        stated_values = re.findall(
+            r"(?:为|是|达到)\s*(\d+(?:\.\d+)?\s*(?:%|％|亿元|万元|千元|元|年|个月|月|日|个工作日|倍|级))",
+            option,
+        )
+        if not fields or not stated_values:
+            continue
+        target_doc_id: Optional[str] = None
+        doc_ids = [str(doc_id) for doc_id in question.get("doc_ids", [])]
+        if "第一份文档" in option and doc_ids:
+            target_doc_id = doc_ids[0]
+        elif "第二份文档" in option and len(doc_ids) >= 2:
+            target_doc_id = doc_ids[1]
+        matching = [
+            chunk for chunk in pack.chunks
+            if (target_doc_id is None or chunk.doc_id == target_doc_id)
+            and any(normalized_literal(field) in normalized_literal(chunk.text) for field in fields)
+            and all(normalized_literal(value) in normalized_literal(chunk.text) for value in stated_values)
+        ]
+        if not matching:
+            continue
+        best = max(matching, key=lambda item: item.score)
+        item = judgments.get(letter)
+        if not isinstance(item, dict):
+            item = {}
+            judgments[letter] = item
+        item.update(
+            {
+                "verdict": True,
+                "confidence": 1.0,
+                "citations": [best.chunk_id],
+                "reasoning": (
+                    "Deterministic simple-field check: the requested document contains the stated field and "
+                    f"exact value {stated_values[0]}; the option contains no comparison or universal qualifier."
+                ),
+            }
+        )
+        changed = True
+
     for letter in LETTERS:
         option = str(options.get(letter, ""))
         if "持续放缓趋势" not in option or "逐年" in option:
