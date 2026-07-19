@@ -1,5 +1,22 @@
 # Version Log
 
+## v4-candidate-score-pending
+
+- Date: 2026-07-20
+- Public A score: pending online evaluation
+- Total tokens: 1,736,811
+- Submit file: `results/v4_candidate/answer.csv`
+
+Changes:
+
+- Added page-aware, document-coverage retrieval with mandatory document headers and early summary evidence.
+- Added numeric, percentage, date, article-number, and financial-scope anchors.
+- Added continuation chunks so tables and clauses spanning extracted pages are not truncated.
+- Added structured evidence memory with chunk citations and confidence values.
+- Added domain checks for financial reports, insurance formulas/rankings, contracts, regulations, and research reports.
+- Added conditional second-pass verification only for low-confidence, numeric, unsupported, or inconsistent answers.
+- Added true/false proposition handling, answer consistency validation, API retries, incremental checkpoints, and resume support.
+
 ## v2-score-61.3618
 
 - Date: 2026-07-19
