@@ -174,6 +174,11 @@ def semantic_guardrails(question: Dict[str, Any]) -> List[str]:
             "Contract remedy labels are exact legal terms. Never transfer the calculation base of 违约金 to "
             "逾期利息/违约利息, or vice versa."
         )
+    if "违约" in text and "或相关条款" in text:
+        guards.append(
+            "Respect the logical OR: a document mentioning either concrete default events or a related default "
+            "clause satisfies '具体描述或相关条款'; do not require both."
+        )
     return guards
 
 
@@ -224,6 +229,42 @@ def apply_deterministic_checks(
             }
         )
         changed = True
+
+    if str(question.get("domain", "")) == "financial_contracts":
+        doc_ids = [str(doc_id) for doc_id in question.get("doc_ids", [])]
+        for letter in LETTERS:
+            option = str(options.get(letter, ""))
+            if "均" not in option or "违约" not in option or "或相关条款" not in option:
+                continue
+            supporting: List[PageChunk] = []
+            for doc_id in doc_ids:
+                candidates = [
+                    chunk for chunk in pack.chunks
+                    if chunk.doc_id == doc_id
+                    and any(term in chunk.text for term in ("违约情形", "违约事件", "违约责任"))
+                ]
+                if not candidates:
+                    supporting = []
+                    break
+                supporting.append(max(candidates, key=lambda item: item.score))
+            if not supporting or len(supporting) != len(doc_ids):
+                continue
+            item = judgments.get(letter)
+            if not isinstance(item, dict):
+                item = {}
+                judgments[letter] = item
+            item.update(
+                {
+                    "verdict": True,
+                    "confidence": 1.0,
+                    "citations": [chunk.chunk_id for chunk in supporting],
+                    "reasoning": (
+                        "Deterministic OR check: every document contains either concrete default events or a "
+                        "related default-responsibility clause, which satisfies the option's disjunction."
+                    ),
+                }
+            )
+            changed = True
 
     if str(question.get("domain", "")) == "financial_reports":
         for letter in LETTERS:
@@ -870,6 +911,7 @@ def main() -> None:
     parser.add_argument("--qid", default="")
     parser.add_argument("--qids", default="")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--restart-qid", default="")
     args = parser.parse_args()
 
     settings = load_settings()
@@ -914,6 +956,28 @@ def main() -> None:
             restored = read_json_any(evidence_path)
             if isinstance(restored, list):
                 traces = [item for item in restored if isinstance(item, dict)]
+
+    if args.restart_qid:
+        question_order = {
+            str(question.get("qid", "")): index
+            for index, question in enumerate(questions)
+        }
+        if args.restart_qid not in question_order:
+            raise ValueError(f"Unknown restart qid: {args.restart_qid}")
+        restart_index = question_order[args.restart_qid]
+        rows = [
+            row for row in rows
+            if question_order.get(str(row.get("qid", "")), len(questions)) < restart_index
+        ]
+        kept_qids = {str(row.get("qid", "")) for row in rows}
+        traces = [trace for trace in traces if str(trace.get("qid", "")) in kept_qids]
+        summary = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        for row in rows:
+            for key in summary:
+                summary[key] += int(row.get(key, 0))
+        write_answer_csv(output_path, rows, summary)
+        if evidence_path:
+            safe_json_dump(evidence_path, traces)
 
     completed = {str(row["qid"]) for row in rows}
     pending = [question for question in questions if str(question.get("qid", "")) not in completed]

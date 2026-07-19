@@ -224,6 +224,25 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["judgments"]["B"]["verdict"])
         self.assertEqual("B", checked["answer"])
 
+    def test_default_description_or_related_clause_is_disjunction(self):
+        first = chunk("text02", 192, "违约情形及认定：以下情形构成本期债券项下的违约", {"D"}, 10)
+        second = chunk("text14", 180, "二、违约责任及解决措施：以下事件构成违约事件", {"D"}, 10)
+        second.doc_order = 2
+        pack = EvidencePack(chunks=[first, second], context="", diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "financial_contracts",
+            "doc_ids": ["text02", "text14"],
+            "options": {"D": "两份文件均提到了具体的违约情形描述或相关条款"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"D": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+        self.assertEqual("D", checked["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()
