@@ -1,9 +1,9 @@
 # Version Log
 
-## v4-candidate-score-pending
+## v4-score-70.7675
 
 - Date: 2026-07-20
-- Public A score: pending online evaluation
+- Public A score: 70.7675
 - Total tokens: 1,736,811
 - Submit file: `results/v4_candidate/answer.csv`
 
