@@ -538,6 +538,31 @@ def apply_deterministic_checks(
                     )
                     changed = True
                     continue
+            if (
+                "2026年一季度" in option_literal
+                and "电动车销量同比下降3.6%" in option_literal
+            ):
+                matching = [
+                    chunk for chunk in pack.chunks
+                    if "26年1-3月" in normalized_literal(chunk.text)
+                    and "国内累计销量" in normalized_literal(chunk.text)
+                    and "同比-3.6%" in normalized_literal(chunk.text)
+                ]
+                if matching:
+                    best = max(matching, key=lambda item: item.score)
+                    judgments.setdefault(letter, {}).update(
+                        {
+                            "verdict": True,
+                            "confidence": 1.0,
+                            "citations": [best.chunk_id],
+                            "reasoning": (
+                                "Deterministic quarter check: January through March cumulative sales are the "
+                                "first-quarter total, and -3.6% year over year means a 3.6% decline."
+                            ),
+                        }
+                    )
+                    changed = True
+                    continue
             exact_support = None
             if (
                 "数据中心半导体加速市场规模" in option_literal

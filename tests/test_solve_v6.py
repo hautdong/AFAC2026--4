@@ -418,6 +418,22 @@ class SolveV6Tests(unittest.TestCase):
         self.assertFalse(checked["judgments"]["B"]["verdict"])
         self.assertEqual("A", checked["answer"])
 
+    def test_first_quarter_equals_january_through_march(self):
+        source = chunk("report", 1, "26年1-3月国内累计销量296万辆，同比-3.6%", set(), 10)
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "research",
+            "options": {"D": "2026年一季度国内电动车销量同比下降3.6%"},
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"D": {"verdict": False}}},
+        )
+        self.assertTrue(checked["judgments"]["D"]["verdict"])
+        self.assertEqual("D", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
