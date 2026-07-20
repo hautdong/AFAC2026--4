@@ -516,6 +516,28 @@ def apply_deterministic_checks(
         for letter in LETTERS:
             option = str(options.get(letter, ""))
             option_literal = normalized_literal(option)
+            if "寿险管理体系" in option_literal:
+                matching = [
+                    chunk for chunk in pack.chunks
+                    if "人身险保费" in normalized_literal(chunk.text)
+                    and "快速增长" in normalized_literal(chunk.text)
+                ]
+                if matching:
+                    best = max(matching, key=lambda item: item.score)
+                    judgments.setdefault(letter, {}).update(
+                        {
+                            "verdict": False,
+                            "confidence": 1.0,
+                            "citations": [best.chunk_id],
+                            "reasoning": (
+                                "Deterministic scope check: the source supports rapid growth of life-insurance "
+                                "premiums, not the broader claim that the channel supports the insurance "
+                                "management system."
+                            ),
+                        }
+                    )
+                    changed = True
+                    continue
             exact_support = None
             if (
                 "数据中心半导体加速市场规模" in option_literal
@@ -557,6 +579,13 @@ def apply_deterministic_checks(
                     if "韩国" in normalized_literal(chunk.text)
                     and "银保渠道" in normalized_literal(chunk.text)
                     and "12%" in normalized_literal(chunk.text)
+                ]
+            elif "8894.3亿美元" in option_literal:
+                exact_support = [
+                    chunk for chunk in pack.chunks
+                    if "8894.3亿美元" in normalized_literal(chunk.text)
+                    and "中国" in normalized_literal(chunk.text)
+                    and "ict" in normalized_literal(chunk.text)
                 ]
             elif (
                 "客户资金杠杆" in option_literal

@@ -392,6 +392,32 @@ class SolveV6Tests(unittest.TestCase):
         )
         self.assertEqual("ABCD", checked["answer"])
 
+    def test_research_scope_and_ict_forecast_are_literal(self):
+        source = chunk(
+            "report",
+            1,
+            "IDC预测2029年中国ICT市场规模接近8894.3亿美元；韩国银保渠道保费贡献超过50%，支撑了韩国人身险保费的快速增长",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "research",
+            "options": {
+                "A": "2029年中国ICT市场规模预计接近8894.3亿美元",
+                "B": "韩国寿险银保渠道保费贡献超过50%，支撑了韩国寿险管理体系",
+            },
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {"A": {"verdict": False}, "B": {"verdict": True}}},
+        )
+        self.assertTrue(checked["judgments"]["A"]["verdict"])
+        self.assertFalse(checked["judgments"]["B"]["verdict"])
+        self.assertEqual("A", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
