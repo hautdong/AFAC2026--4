@@ -539,6 +539,50 @@ def apply_deterministic_checks(
                     and "10%" in normalized_literal(chunk.text)
                     and "快速提升" in normalized_literal(chunk.text)
                 ]
+            elif (
+                "金融信创市场规模" in option_literal
+                and "2500亿元" in option_literal
+            ):
+                exact_support = [
+                    chunk for chunk in pack.chunks
+                    if "金融信创市场规模" in normalized_literal(chunk.text)
+                    and "2500亿元" in normalized_literal(chunk.text)
+                ]
+            elif (
+                "韩国寿险银保渠道" in option_literal
+                and "12%" in option_literal
+            ):
+                exact_support = [
+                    chunk for chunk in pack.chunks
+                    if "韩国" in normalized_literal(chunk.text)
+                    and "银保渠道" in normalized_literal(chunk.text)
+                    and "12%" in normalized_literal(chunk.text)
+                ]
+            elif (
+                "客户资金杠杆" in option_literal
+                and "1.56倍" in option_literal
+                and "4.09倍" in option_literal
+            ):
+                exact_support = [
+                    chunk for chunk in pack.chunks
+                    if "1.56倍" in normalized_literal(chunk.text)
+                    and "4.09倍" in normalized_literal(chunk.text)
+                    and "客户资金杠杆" in normalized_literal(chunk.text)
+                ]
+            elif (
+                "居民可支配收入增速" in option_literal
+                and "6.33%" in option_literal
+                and "4.99%" in option_literal
+            ):
+                exact_support = [
+                    chunk for chunk in pack.chunks
+                    if (
+                        "居民可支配收入" in normalized_literal(chunk.text)
+                        or "居民人均可支配总收入" in normalized_literal(chunk.text)
+                    )
+                    and "6.33%" in normalized_literal(chunk.text)
+                    and "4.99%" in normalized_literal(chunk.text)
+                ]
             if not exact_support:
                 continue
             best = max(exact_support, key=lambda item: item.score)

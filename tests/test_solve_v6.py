@@ -365,6 +365,33 @@ class SolveV6Tests(unittest.TestCase):
         self.assertTrue(checked["proposition_verdict"])
         self.assertEqual("A", checked["answer"])
 
+    def test_research_literal_metrics_are_not_overly_narrowed(self):
+        source = chunk(
+            "report",
+            1,
+            "韩国银保渠道保费贡献超过50%，近20年复合增速达到12%；2025年金融信创市场规模预计接近2500亿元；"
+            "2008年至2025Q1-3客户资金杠杆从1.56倍提升至4.09倍；2023-2025年居民可支配收入增速从6.33%降至4.99%",
+            set(),
+            10,
+        )
+        pack = EvidencePack(chunks=[source], context=source.text, diagnostics={})
+        question = {
+            "answer_format": "multi",
+            "domain": "research",
+            "options": {
+                "A": "韩国寿险银保渠道保费贡献率在过去20年复合增速达到12%",
+                "B": "2025年金融信创市场规模预计接近2500亿元",
+                "C": "2008年至2025Q1-3我国上市券商客户资金杠杆从1.56倍提升至4.09倍",
+                "D": "2023年至2025年间居民可支配收入增速从6.33%下降至4.99%",
+            },
+        }
+        checked = apply_deterministic_checks(
+            question,
+            pack,
+            {"answer": "", "judgments": {letter: {"verdict": False} for letter in "ABCD"}},
+        )
+        self.assertEqual("ABCD", checked["answer"])
+
     def test_consecutive_duration_must_reach_report_year(self):
         source = chunk(
             "annual_midea_2024_report",
