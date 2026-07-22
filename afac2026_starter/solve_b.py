@@ -247,10 +247,12 @@ Source excerpts:
 
 Method:
 1. Extract every input value with doc_id, chunk_id, year, and unit.
-2. Write formulas and substitute original values; do not round intermediate results.
-3. Verify ordering, percentage-point versus percent change, dates, signs, and unit conversion.
-4. Return exactly {len(patterns)} answers in the requested order. Do not put units in answers unless the question requires % or a Chinese date.
-5. A semicolon in the question separates answer slots; put each part in a separate answers array element.
+2. Before calculating, write a scope map: requested entity/company, business segment or product, metric, period, and reporting口径. Match every input to that exact scope.
+3. If the source contains both an aggregate row and a segment/product row, never substitute the aggregate for the requested segment/product. Cite the exact matching row and year/column; reject a value whose scope is broader or different from the question.
+4. Write formulas and substitute original values; do not round intermediate results.
+5. Verify ordering, percentage-point versus percent change, dates, signs, and unit conversion.
+6. Return exactly {len(patterns)} answers in the requested order. Do not put units in answers unless the question requires % or a Chinese date.
+7. A semicolon in the question separates answer slots; put each part in a separate answers array element.
 
 Return JSON:
 {{
@@ -297,6 +299,7 @@ Source excerpts:
 {context}
 
 Independently extract inputs and recompute. Use no rounded intermediate values. Return exactly {len(patterns)} ordered answer strings.
+First verify the requested entity, segment/product, metric, period, and reporting口径. When the excerpt contains both an overall metric and a segment/product breakdown, use only the row matching the question's requested scope; an overall value is invalid for a segment/product question even if it appears nearby.
 Return JSON with keys facts, formula, calculation, answers, corrections, reason.
 """.strip(),
         },

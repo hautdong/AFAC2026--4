@@ -7,6 +7,8 @@ from pathlib import Path
 from afac2026_starter.solve_b import (
     load_template,
     normalize_open_answers,
+    open_primary_messages,
+    open_review_messages,
     rank_candidate_documents,
     write_b_csv,
 )
@@ -55,6 +57,16 @@ class SolveBTests(unittest.TestCase):
         answers = normalize_open_answers(["美的 ＞ 宁德时代", " 2.35 "], 2)
         self.assertEqual(["美的>宁德时代", "2.35"], answers)
         self.assertEqual([], normalize_open_answers(["1.00"], 2))
+
+    def test_open_prompts_reject_aggregate_for_requested_segment(self):
+        question = {
+            "question": "计算矿业板块毛利率",
+            "domain": "financial_contracts",
+        }
+        primary = open_primary_messages(question, "context", ["999999.99%"])[1]["content"]
+        review = open_review_messages(question, "context", ["999999.99%"], {})[1]["content"]
+        self.assertIn("never substitute the aggregate", primary)
+        self.assertIn("overall value is invalid", review)
 
     def test_template_and_writer_use_b_columns(self):
         with tempfile.TemporaryDirectory() as temp_dir:
