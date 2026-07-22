@@ -87,7 +87,7 @@ Copy-Item .env.example .env
 
 ```env
 DASHSCOPE_API_KEY=你的百炼APIKey
-QWEN_MODEL=qwen-plus
+QWEN_MODEL=qwen3.6-plus
 QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
@@ -113,7 +113,7 @@ cd E:\lunwen_jiangjie\afac2026_starter
 ### 第二步：激活你的 conda 环境
 
 ```powershell
-conda activate huang_3.8
+conda activate huang_3_8
 ```
 
 ### 第三步：一键跑 A 榜数据
@@ -152,7 +152,7 @@ conda activate huang_3.8
 ### 先激活 conda 环境
 
 ```powershell
-conda activate huang_3.8
+conda activate huang_3_8
 ```
 
 ### 先把官方数据包转成 starter 需要的元数据
@@ -253,3 +253,35 @@ python -m afac2026_starter.solve `
 3. 执行 `.\run_a.ps1`。
 
 只要这一步通了，你就已经超过“完全不会开始”的阶段了。
+
+## 12. B 榜运行方式
+
+B 榜题目放在 `upload_b\question_b`，提交模板为 `upload_b\submit.csv`。当前 B 管线会在 573 份原始材料中先做分领域词法召回，再由 Qwen 选择 1-4 份文档，最后执行证据检索、逐项判断或计算和独立复核，全程不使用 embedding 模型。
+
+确认 `.env` 使用可调用的 `qwen3.6-plus` 后运行：
+
+```powershell
+conda activate huang_3_8
+cd E:\lunwen_jiangjie\afac2026_starter
+.\run_b.ps1
+```
+
+脚本支持断点续跑，结果位于：
+
+```text
+results\b_final\answer.csv
+results\b_final\evidence.json
+```
+
+中断后重新执行 `run_b.ps1` 即可跳过已经完成的题目。只重跑某一道题可使用：
+
+```powershell
+python -m afac2026_starter.solve_b `
+  --questions data_b\questions\public_b.json `
+  --doc-meta data_b\metadata\documents.json `
+  --processed-dir cache\processed_docs_b `
+  --template upload_b\submit.csv `
+  --output results\b_check\answer.csv `
+  --evidence-output results\b_check\evidence.json `
+  --qid fc_b_002
+```

@@ -15,6 +15,7 @@ from openai import OpenAI
 
 from .common import (
     build_question_text,
+    clean_layout_text,
     clean_text,
     ensure_dir,
     load_settings,
@@ -110,11 +111,43 @@ class EvidencePack:
 
 
 def split_page_text(text: str, target_size: int = 1150, overlap: int = 220) -> List[str]:
-    text = clean_text(text)
+    text = clean_layout_text(text)
     if not text:
         return []
     if len(text) <= target_size:
         return [text]
+
+    lines = text.splitlines()
+    if len(lines) > 1:
+        chunks: List[str] = []
+        start_line = 0
+        while start_line < len(lines):
+            end_line = start_line
+            current_size = 0
+            while end_line < len(lines):
+                next_size = len(lines[end_line]) + (1 if current_size else 0)
+                if current_size and current_size + next_size > target_size:
+                    break
+                current_size += next_size
+                end_line += 1
+                if current_size >= target_size:
+                    break
+            if end_line == start_line:
+                end_line += 1
+            chunk = "\n".join(lines[start_line:end_line])
+            if len(chunk) > target_size * 1.5 and end_line == start_line + 1:
+                chunks.extend(split_page_text(clean_text(chunk), target_size=target_size, overlap=overlap))
+            else:
+                chunks.append(chunk)
+            if end_line >= len(lines):
+                break
+            overlap_size = 0
+            next_start = end_line
+            while next_start > start_line and overlap_size < overlap:
+                next_start -= 1
+                overlap_size += len(lines[next_start]) + 1
+            start_line = max(start_line + 1, next_start)
+        return chunks
 
     chunks: List[str] = []
     start = 0
@@ -154,7 +187,12 @@ def build_document_indexes(
         if not doc_id:
             continue
         meta = meta_by_id.get(doc_id, {})
-        title = str(meta.get("title") or raw.get("title") or doc_id)
+        metadata_title = str(meta.get("title", "")).strip()
+        extracted_title = str(raw.get("title", "")).strip()
+        if metadata_title and metadata_title != doc_id:
+            title = metadata_title
+        else:
+            title = extracted_title or metadata_title or doc_id
         pages = raw.get("pages") if isinstance(raw.get("pages"), list) else []
         if not pages:
             pages = [{"page": 1, "text": str(raw.get("text", ""))}]
@@ -163,7 +201,8 @@ def build_document_indexes(
         chunk_order = 0
         for page_item in pages:
             page_number = int(page_item.get("page", 0) or 0)
-            for page_part in split_page_text(str(page_item.get("text", ""))):
+            page_text = str(page_item.get("search_text") or page_item.get("text", ""))
+            for page_part in split_page_text(page_text):
                 chunk_id = f"{doc_id}::p{page_number}::c{chunk_order}"
                 chunks.append(
                     PageChunk(
@@ -563,7 +602,11 @@ def answer_protocol(question: Dict[str, Any]) -> str:
     return (
         "This is multiple-choice. Judge A/B/C/D independently and include every supported option. "
         "At least one option is expected to be correct; do not reject a derivable option merely because the source "
-        "does not repeat its wording verbatim."
+        "does not repeat its wording verbatim. Judge whether each option's own claims are true, not whether the "
+        "option exhaustively restates every related condition in the source. An omitted additional cap, exception, "
+        "or implementation detail does not make a true statement false unless the option claims exclusivity, "
+        "sufficiency, or an unconditional result. A source phrase such as '专项资管计划等' supports an option that "
+        "names 专项资管计划 as the implemented method; the option need not repeat '等'."
     )
 
 

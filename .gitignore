@@ -5,6 +5,8 @@ __pycache__/
 cache/
 public_dataset_a/
 data/
+data_b/
+upload_b/
 results/*
 !results/.gitkeep
 !results/v2_submit/

@@ -96,6 +96,17 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
+def clean_layout_text(text: str) -> str:
+    """Normalize horizontal whitespace while preserving meaningful line boundaries."""
+    text = text.replace("\u3000", " ").replace("\xa0", " ")
+    lines: List[str] = []
+    for raw_line in text.splitlines():
+        line = re.sub(r"[\t\f\v ]+", " ", raw_line).strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def tokenize(text: str) -> List[str]:
     text = clean_text(text).lower()
     ascii_tokens = re.findall(r"[a-z0-9_./%-]+", text)

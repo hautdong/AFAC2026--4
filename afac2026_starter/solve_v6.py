@@ -1256,6 +1256,11 @@ def solve_question_v6(
     primary = apply_deterministic_checks(question, primary_pack, primary)
     primary_answer, primary_issues = parse_answer(primary, answer_format)
     reasons = review_reasons(question, primary, primary_issues, primary_pack)
+    if (
+        str(question.get("split", "")).upper() == "B"
+        and answer_format in {"mcq", "multi", "tf"}
+    ):
+        reasons = sorted(set([*reasons, "blind_b_independent_review"]))
 
     final = primary
     final_answer = primary_answer
